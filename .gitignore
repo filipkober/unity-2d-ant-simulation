@@ -1,0 +1,10 @@
+*
+!*/
+
+# track this file
+!.gitignore
+
+# whitelist everything in ./config/
+!Assets/**
+!ProjectSettings/**
+/Assets/TextMesh*Pro/
