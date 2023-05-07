@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.RuleTile.TilingRuleOutput;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -52,14 +53,14 @@ public class MapGenerator : MonoBehaviour
         var mesh = CreateMesh();
         //var mesh = CreateMeshExample();
         GetComponent<MeshFilter>().mesh = mesh;
-
+        UpdateCollider();
         gameObject.transform.position = new Vector3((-width / 2) * wallSize, (-height / 2) * wallSize);
     }
     void RandomFillMap()
     {
-        for(int x = 0; x < width; x++)
+        for (int x = 0; x < width; x++)
         {
-            for(int y = 0; y < height; y++)
+            for (int y = 0; y < height; y++)
             {
                 float random = Random.Range(0f, 1f);
                 var black = random < ((float)fillPercent / 100);
@@ -72,13 +73,13 @@ public class MapGenerator : MonoBehaviour
     {
         int neighbors = 0;
 
-        for(int i = x - 1; i <= x + 1; i++)
+        for (int i = x - 1; i <= x + 1; i++)
         {
-            for(int j = y - 1; j <= y + 1; j++)
+            for (int j = y - 1; j <= y + 1; j++)
             {
-                if(x != i || y != j)
+                if (x != i || y != j)
                 {
-                    if(i < width && i >= 0 && j < height && j >= 0)
+                    if (i < width && i >= 0 && j < height && j >= 0)
                     {
                         if (map[i, j]) neighbors++;
                     }
@@ -207,7 +208,7 @@ public class MapGenerator : MonoBehaviour
         return points.ToArray();
     }
 
-    int CountBlackSquares()
+    int CountBlackSquares(bool[,] map)
     {
         int blackSquares = 0;
         for (int x = 0; x < width; x++)
@@ -224,12 +225,8 @@ public class MapGenerator : MonoBehaviour
     {
         if (map is null) return new Mesh();
 
-        var col = GetComponent<PolygonCollider2D>();
-
         var mesh = new Mesh();
-        int blackSquares = CountBlackSquares();
-
-        col.pathCount = blackSquares;
+        int blackSquares = CountBlackSquares(map);
 
         var vertices = new Vector3[blackSquares * 4];
         Vector2[] uv = new Vector2[blackSquares * 4];
@@ -250,7 +247,7 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        for(int i = 0; i < blackSquares; i++)
+        for (int i = 0; i < blackSquares; i++)
         {
             // 0 4 8 12 16 20 ...
             vertices[(i * 4)] = new Vector3(coords[i].x - wallSize / 2, coords[i].y - wallSize / 2);
@@ -260,14 +257,6 @@ public class MapGenerator : MonoBehaviour
             vertices[(i * 4) + 2] = new Vector3(coords[i].x + wallSize / 2, coords[i].y + wallSize / 2);
             // 3 7 11 15 19 23
             vertices[(i * 4) + 3] = new Vector3(coords[i].x + wallSize / 2, coords[i].y - wallSize / 2);
-
-            var v2s = new Vector2[4] {new Vector2(coords[i].x - wallSize / 2, coords[i].y - wallSize / 2),
-                new Vector2(coords[i].x - wallSize / 2, coords[i].y + wallSize / 2),
-                new Vector2(coords[i].x + wallSize / 2, coords[i].y + wallSize / 2),
-                new Vector2(coords[i].x + wallSize / 2, coords[i].y - wallSize / 2)
-            };
-
-            col.SetPath(i, v2s);
 
             uv[(i * 4)] = (Vector2)vertices[(i * 4)].normalized;
             uv[(i * 4) + 1] = (Vector2)vertices[(i * 4) + 1].normalized;
@@ -289,5 +278,89 @@ public class MapGenerator : MonoBehaviour
         mesh.triangles = triangles;
 
         return mesh;
+    }
+
+    void UpdateCollider()
+    {
+        if (map is null) return;
+        var col = GetComponent<PolygonCollider2D>();
+
+        bool[,] mapClone = map.Clone() as bool[,];
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (GetNeighbors(x, y) == 8)
+                {
+                    mapClone[x, y] = false;
+                }
+            }
+        }
+        int pathCount = CountBlackSquares(mapClone);
+        var vertRecktangles = VertRectangles(ref mapClone);
+        pathCount -= vertRecktangles.Count;
+
+        col.pathCount = pathCount;
+
+        for (int i = 0; i < vertRecktangles.Count; i++)
+        {
+
+            col.SetPath(i, vertRecktangles[i]);
+        }
+
+        int blackSquares = CountBlackSquares(mapClone);
+        Debug.Log(blackSquares + vertRecktangles.Count == pathCount);
+        var coords = new Vector3[blackSquares];
+
+        int lastIndex = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (mapClone[x, y])
+                {
+                    coords[lastIndex] = new Vector3(x, y);
+                    lastIndex++;
+                }
+            }
+        }
+
+        for (int i = 0; i < blackSquares; i++)
+        {
+            var v2s = new Vector2[4] {new Vector2(coords[i].x - wallSize / 2, coords[i].y - wallSize / 2),
+                new Vector2(coords[i].x - wallSize / 2, coords[i].y + wallSize / 2),
+                new Vector2(coords[i].x + wallSize / 2, coords[i].y + wallSize / 2),
+                new Vector2(coords[i].x + wallSize / 2, coords[i].y - wallSize / 2)
+            };
+
+            col.SetPath(vertRecktangles.Count + i, v2s);
+        }
+
+    }
+    // TODO: fix this bruh
+    List<Vector2[]> VertRectangles(ref bool[,] map)
+    {
+        List<Vector2[]> vertRectangles = new List<Vector2[]>();
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (y + 1 < height && map[x, y] && map[x, y + 1])
+                {
+                    vertRectangles.Add(new Vector2[]
+                    {
+                        new Vector2(x + wallSize / 2, y - wallSize / 2),
+                        new Vector2(x + wallSize / 2, y + 1 + wallSize / 2),
+                        new Vector2(x - wallSize / 2, y + 1 + wallSize / 2),
+                        new Vector2(x - wallSize / 2, y - wallSize / 2),
+                    });
+                    map[x, y + 1] = false;
+                    map[x, y] = false;
+                }
+            }
+        }
+
+        return vertRectangles;
     }
 }
