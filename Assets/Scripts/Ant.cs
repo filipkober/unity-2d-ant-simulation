@@ -195,8 +195,9 @@ public class Ant : MonoBehaviour
 
         if(raysTriggered == rayNumber)
         {
-            avoidanceForce = Quaternion.Euler(0, 0, Random.Range(0f, visionConeWidthDegrees / rayNumber)) * avoidanceForce * 2;
-            return avoidanceForce;
+            //avoidanceForce = Quaternion.Euler(0, 0, Random.Range(0f, visionConeWidthDegrees / rayNumber)) * avoidanceForce * 2;
+            //return avoidanceForce;
+            velocity = Quaternion.Euler(0, 0, Random.Range(0f, 360f)) * velocity.normalized * maxAvoidForce * 2;
         }
 
         if(drawCollisionDetectionRays) Debug.DrawRay(transform.position, avoidanceForce.normalized * 2, Color.white);
@@ -237,6 +238,7 @@ public class Ant : MonoBehaviour
             this.GetComponent<SpriteRenderer>().color = Color.green;
             collision.gameObject.GetComponent<Food>().foodGrabbed();
             viewTarget = null;
+            velocity = Quaternion.Euler(0, 0, 180) * velocity;
             return;
         }
         if (collision.gameObject.GetComponent<AntHome>() && currentAction == AntBehavior.ReturnHome)
@@ -249,6 +251,7 @@ public class Ant : MonoBehaviour
             }
             viewTarget = null;
             currentAction = AntBehavior.FindFood;
+            velocity = Quaternion.Euler(0, 0, 180) * velocity;
             return;
         }
     }
@@ -270,17 +273,18 @@ public class Ant : MonoBehaviour
     private Vector3 DetectPheromones()
     {
         var angleStep = pheromoneDetectionAngle / 3;
-        int maxPheromones = 0;
+        float maxPheromoneConcentration = 0;
         Vector3 pheromoneForce = Vector3.zero;
 
         for (int i = 0; i < 3; i++)
         {
             float angle = -pheromoneDetectionAngle / 3 + angleStep * i;
             Vector3 newPosition = (Quaternion.Euler(0, 0, angle) * velocity.normalized).normalized * pheromoneDetectionDistance;
-            int pheromonesInArea = CountPheromonesInArea(newPosition);
-            if(pheromonesInArea > maxPheromones)
+            var pheromonesInDetection = PheromonesInArea(newPosition);
+            var pheromoneConcentration = pheromonesInDetection.Sum(p => p.strength);
+            if (pheromoneConcentration > maxPheromoneConcentration)
             {
-                pheromoneForce = newPosition.normalized * pheromoneAttractionForce;
+                pheromoneForce = newPosition.normalized * (pheromoneAttractionForce * (pheromoneConcentration / pheromonesInDetection.Count));
             }
         }
 
@@ -288,9 +292,8 @@ public class Ant : MonoBehaviour
 
     }
 
-    private int CountPheromonesInArea(Vector3 position)
+    private List<Pheromone> PheromonesInArea(Vector3 position)
     {
-        int pheromonesDetected = 0;
 
         var detection = Physics2D.OverlapCircleAll(transform.position + position, pheromoneDetectionRadius, pheromoneMask);
 
@@ -305,9 +308,7 @@ public class Ant : MonoBehaviour
             pheromonesInDetection = pheromonesInDetection.Where(p => p.type == PheromoneType.TowardsHome).ToList();
         }
 
-        pheromonesDetected = pheromonesInDetection.Count;
-
-        return pheromonesDetected;
+        return pheromonesInDetection;
     }
 
     private void OnDrawGizmos()

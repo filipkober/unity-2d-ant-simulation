@@ -133,11 +133,11 @@ MonoBehaviour:
   visionConeWidthDegrees: 70
   circleDistance: 0.5
   angleChange: 280
-  scanDistance: 2.5
+  scanDistance: 3.5
   pheromoneSpawnDelay: 0.5
   pheromoneAttractionForce: 2
   pheromoneDetectionRadius: 0.7
-  pheromoneDetectionAngle: 240
+  pheromoneDetectionAngle: 200
   pheromoneDetectionDistance: 1.2
   drawDetectionSphere: 0
   drawCollisionDetectionRays: 0

@@ -47,6 +47,7 @@ public class MapGenerator : MonoBehaviour
         map = new bool[width, height];
         RandomFillMap();
         for (int i = 0; i < iterations; i++) CellularAutomata();
+        SmootherEdges();
         FillWalls();
         //var points = CreateColliderPoints();
         //GetComponent<PolygonCollider2D>().points = points;
@@ -309,7 +310,6 @@ public class MapGenerator : MonoBehaviour
         }
 
         int blackSquares = CountBlackSquares(mapClone);
-        Debug.Log(blackSquares + vertRecktangles.Count == pathCount);
         var coords = new Vector3[blackSquares];
 
         int lastIndex = 0;
@@ -337,7 +337,6 @@ public class MapGenerator : MonoBehaviour
         }
 
     }
-    // TODO: fix this bruh
     List<Vector2[]> VertRectangles(ref bool[,] map)
     {
         List<Vector2[]> vertRectangles = new List<Vector2[]>();
@@ -363,4 +362,43 @@ public class MapGenerator : MonoBehaviour
 
         return vertRectangles;
     }
+    bool SquareSticksOut(int x, int y)
+    {
+        // all possibilities
+        // XXX XOO OOO OOX
+        // OXO XXO OXO OXX
+        // OOO XOO XXX OOX
+
+        if (GetNeighbors(x, y) != 3) return false;
+
+        if (x - 1 >= 0 && y - 1 >= 0 && map[x - 1, y - 1])
+        {
+            if (x + 1 < width && map[x, y - 1] && map[x + 1, y - 1]) return true;
+            if (y + 1 < height && map[x - 1, y] && map[x - 1, y - 1]) return true;
+        }
+        if (x + 1 < width && y + 1 < height && map[x + 1, y + 1])
+        {
+            if (x - 1 >= 0 && map[x, y + 1] && map[x + 1, y + 1]) return true;
+            if (y - 1 >= 0 && map[x + 1, y] && map[x + 1, y - 1]) return true;
+        }
+        return false;
+    }
+    void SmootherEdges()
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (map[x, y] && SquareSticksOut(x, y))
+                {
+                    map[x, y] = false; continue;
+                }
+                if (map[x, y] && GetNeighbors(x, y) == 0)
+                {
+                    map[x, y] = false; continue;
+                }
+            }
+        }
+    }
+    // TODO: region detection, combining all regions into one big cave
 }
