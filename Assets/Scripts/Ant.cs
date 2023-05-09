@@ -197,7 +197,7 @@ public class Ant : MonoBehaviour
         {
             //avoidanceForce = Quaternion.Euler(0, 0, Random.Range(0f, visionConeWidthDegrees / rayNumber)) * avoidanceForce * 2;
             //return avoidanceForce;
-            velocity = Quaternion.Euler(0, 0, Random.Range(0f, 360f)) * velocity.normalized * maxAvoidForce * 2;
+            velocity = Quaternion.Euler(0, 0, 180) * velocity.normalized * maxAvoidForce * 2;
         }
 
         if(drawCollisionDetectionRays) Debug.DrawRay(transform.position, avoidanceForce.normalized * 2, Color.white);
